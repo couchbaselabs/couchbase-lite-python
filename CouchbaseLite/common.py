@@ -18,29 +18,47 @@
 
 from ._PyCBL import ffi, lib
 
-def cstr(str):
-    return ffi.new("char[]", str.encode("utf-8"))
+# def cstr(str):
+#     """Copies a Python string to a heap-allocated C string."""
+#     return ffi.new("char[]", str.encode("utf-8"))
 
-def pystr(cstr):
-    return str(ffi.string(cstr), "utf-8")
+# def pystr(cstr):
+#     """Copies a C string to a Python string."""
+#     return str(ffi.string(cstr), "utf-8")
 
 def sliceToString(s):
+    """Copies a FLSlice to a Python string."""
     if s.buf == None:
         return None
     return str(ffi.string(ffi.cast("const char*", s.buf), s.size), "utf-8")
 
+def sliceResultToString(sr):
+    """Copies a FLSliceResult to a Python string and frees it."""
+    str = sliceToString(sr)
+    lib.FLSliceResult_Release(sr)
+    return str
+
 def sliceResultToBytes(sr):
+    """Copies a FLSliceResult to a Python bytes object. Does not free the FLSliceResult."""
     if sr.buf == None:
         return None
-    return bytes( ffi.buffer(sr.buf, sr.size) )
+    lib.FLSliceResult_Release(sr)
+    b = bytes( ffi.buffer(sr.buf, sr.size) )
+    return b
 
 def asSlice(data):
+    """Returns a FLSlice pointing to the data."""
     buffer = ffi.from_buffer(data)
-    s = ffi.new("FLSlice*")
+    s = ffi.new("FLSlice")
     s.buf = buffer
     s.size = len(buffer)
     return s
 
+def stringParam(str):
+    """Returns a pointer/length array suitable for passing to an FLSlice C function parameter."""
+    utf8 = str.encode()
+    buffer = ffi.from_buffer(utf8)
+    return [buffer, len(buffer)]
 
 # A global CBLError object to use in API calls, so each call doesn't have to
 # allocate a new one. (This is fine as long as we're single-threaded.)
@@ -52,7 +70,7 @@ class CBLException (EnvironmentError):
         if cblError != None:
             self.domain = cblError.domain
             self.code = cblError.code
-            self.error = pystr(lib.CBLError_Message(cblError))
+            self.error = sliceResultToString(lib.CBLError_Message(cblError))
             EnvironmentError.__init__(self, message + ": " + self.error)
         else:
             EnvironmentError.__init__(self, message)

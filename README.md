@@ -1,30 +1,64 @@
-# Python Bindings For Couchbase Lite
+# EXPERIMENTAL Python Bindings For Couchbase Lite
 
-10 May 2020
+September 2021
 
-This directory contains a [Couchbase Lite][CBL] API binding for Python 3.
+This directory contains a Python API binding of [Couchbase Lite For C][CBL_C], based on [CFFI][CFFI].
 
-It's still in early development. It's incomplete, has only had some informal testing, and that
-only on macOS.
+It's still incomplete, has only had some informal testing, and that only on macOS. It is **NOT SUPPORTED BY COUCHBASE**. Even if you are a Couchbase customer, our support team cannot help you with using this library.
+
+Here's a snippet of code to show what the API looks like:
+
+```python
+from CouchbaseLite.Database import Database, DatabaseConfiguration
+from CouchbaseLite.Document import MutableDocument
+
+# Open a database:
+db = Database("python_db", DatabaseConfiguration("/tmp"));
+
+# Create a document:
+doc = MutableDocument("foo")
+doc["greeting"] = "Howdy!"
+db.saveDocument(doc)
+
+# Read it back:
+readDoc = db.getDocument("foo")
+props = readDoc.properties
+greeting = props["greeting"]
+```
+
 
 ## Building
 
 **_"Some assembly required..."_**
 
-You first need to build Couchbase Lite For C (the root of this repo) with CMake, by running the
-`build.sh` script in the repo root directory. That will produce the shared library.
+### Python and CFFI
 
-    $ cd ../..
+You'll need Python 3. Currently we've only tested this with 3.9.
+
+Make sure you have the CFFI package:
+
+    $ pip3 install cffi
+
+### Couchbae Lite For C
+
+Next you need the Couchbase Lite For C shared library and headers. You can download them from Couchbase, or build them yourself using the [Git repo][CBL_C].
+
+### Building CBL-Python
+
+Now you can build the Python binding library:
+
+    $ cd couchbase-lite-python
     $ ./build.sh
 
-Then you can build the Python binding library, first installing Python's CFFI package if you haven't
-already:
+This assumes Couchbase Lite has been installed into /usr/local. If not, you'll need to tell the script where to find it:
 
-    $ pip install cffi
-    $ cd bindings/python
-    $ ./build.sh
+    $ ./build.sh --include /path/to/include/ --libdir /path/to/libs/
 
-Now try the rudimentary tests:
+`/path/to/include/` should have a _subdirectory_ named `cbl` with the headers in it. And `/path/to/libs` should contain the `libcblite` library file.
+
+### Try it out
+
+Now try the (rudimentary) tests:
 
     $ test/test.sh
 
@@ -33,14 +67,11 @@ You can look at the test code in `test/test.py` for examples of how to use the A
 ## Learning
 
 If you're not already familiar with Couchbase Lite, you'll want to start by reading through its
-[official documentation][CBLDOCS].
+[official documentation][CBLDOCS]. The Python API should be mostly compatible with the languages documented there.
 
-The Python API is mostly method-for-method compatible with the languages documented there, except
-down at the document property level (dictionaries, arrays, etc.) where I haven't yet written
-compatible bindings. For those APIs you can check out the document "[Using Fleece][FLEECE]".
-
-## Using
 
 [CBL]: https://www.couchbase.com/products/lite
+[CBL_C]: https://github.com/couchbaselabs/couchbase-lite-C
+[CFFI]: https://cffi.readthedocs.io/en/latest/index.html
 [CBLDOCS]: https://docs.couchbase.com/couchbase-lite/current/introduction.html
 [FLEECE]: https://github.com/couchbaselabs/fleece/wiki/Using-Fleece

@@ -26,11 +26,11 @@ Database.deleteFile("db", "/tmp")
 
 db = Database("db", DatabaseConfiguration("/tmp"))
 
-print ("db   = ", db)
-print ("name = ", db.name)
-print ("dir  = ", db.config)
-print ("path = ", db.path)
-print ("docs = ", db.count)
+print ("db    = ", db)
+print ("name  = ", db.name)
+print ("config= ", db.config)
+print ("path  = ", db.path)
+print ("docs  = ", db.count)
 
 assert(db.name == "db")
 assert(db.path == "/tmp/db.cblite2/")

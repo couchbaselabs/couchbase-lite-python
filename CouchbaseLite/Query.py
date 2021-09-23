@@ -27,8 +27,11 @@ class Query (CBLObject):
     def __init__(self, database, queryString, language = N1QLLanguage):
         errorPos = ffi.new("int*")
         CBLObject.__init__(self,
-                           lib.CBLQuery_New(database._ref, language, cstr(queryString),
-                                            errorPos, gError),
+                           lib.CBLDatabase_CreateQuery(database._ref,
+                                                       language, 
+                                                       stringParam(queryString),
+                                                       errorPos, 
+                                                       gError),
                            "Couldn't create query", gError)
         self.database = database
         self.columnCount = lib.CBLQuery_ColumnCount(self._ref)
@@ -54,7 +57,7 @@ class Query (CBLObject):
 
     def setParameters(self, params):
         jsonStr = encodeJSON(params)
-        lib.CBLQuery_SetParametersAsJSON(self._ref, cstr(jsonStr))
+        lib.CBLQuery_SetParametersAsJSON(self._ref, stringParam(jsonStr))
 
     def execute(self):
         """Executes the query and returns a Generator of QueryResult objects."""
@@ -144,19 +147,10 @@ class QueryResult (object):
             return False
 
     def asArray(self):
-        result = []
-        for i in range(0, self.query.columnCount):
-            result.append(self[i])
-        return result
+        return decodeFleece(CBLResultSet_ResultArray(self._ref))
 
     def asDictionary(self):
-        result = {}
-        keys = self.query.columnNames
-        for i in range(0, self.query.columnCount):
-            item = lib.CBLResultSet_ValueAtIndex(self._ref, i)
-            if lib.FLValue_GetType(item) != lib.kFLUndefined:
-                result[keys[i]] = decodeFleece(item)
-        return result
+        return decodeFleece(CBLResultSet_ResultDict(self._ref))
 
 
 

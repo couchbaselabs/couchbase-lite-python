@@ -33,8 +33,10 @@ class Document (CBLObject):
 
     @staticmethod
     def _get(database, id):
-        ref = lib.CBLDatabase_GetDocument(database._ref, cstr(id))
+        ref = lib.CBLDatabase_GetDocument(database._ref, stringParam(id), gError)
         if not ref:
+            if gError.code != 0:
+                raise CBLException("Couldn't get document " + id, gError)
             return None
         doc = Document(id)
         doc.database = database
@@ -75,7 +77,7 @@ class Document (CBLObject):
 
     @property
     def JSON(self):
-        return pystr(lib.CBLDocument_PropertiesAsJSON(self._ref))
+        return sliceToString(lib.CBLDocument_PropertiesAsJSON(self._ref))
 
     def get(self, key, dflt = None):
         return self.properties.get(key, dflt)
@@ -94,12 +96,15 @@ class Document (CBLObject):
 
 class MutableDocument (Document):
     def __init__(self, id):
+        """Creates a new empty MutableDocument instance. It will not be written to the database until saved."""
         Document.__init__(self, id)
 
     @staticmethod
     def _get(database, id):
-        ref = lib.CBLDatabase_GetMutableDocument(database._ref, cstr(id))
+        ref = lib.CBLDatabase_GetMutableDocument(database._ref, stringParam(id), gError)
         if not ref:
+            if gError.code != 0:
+                raise CBLException("Couldn't get document " + id, gError)
             return None
         doc = MutableDocument(id)
         doc.database = database
@@ -111,7 +116,7 @@ class MutableDocument (Document):
         if "_properties" in self.__dict__:
             return encodeJSON(self._properties)
         else:
-            return pystr(lib.CBLDocument_PropertiesAsJSON(self._ref))
+            return sliceResultToString(lib.CBLDocument_CreateJSON(self._ref))
 
     def setProperties(self, props):
         self._properties = props
@@ -125,14 +130,14 @@ class MutableDocument (Document):
     # Called from Database.saveDocument
     def _prepareToSave(self):
         if not self._ref:
-            self._ref = lib.CBLDocument_New(cstr(self.id))
+            self._ref = lib.CBLDocument_CreateWithID(stringParam(self.id))
         if "_properties" in self.__dict__:
             jsonStr = encodeJSON(self._properties)
-            if not lib.CBLDocument_SetPropertiesAsJSON(self._ref, cstr(jsonStr), gError):
+            if not lib.CBLDocument_SetJSON(self._ref, stringParam(jsonStr), gError):
                 raise CBLException("Couldn't store properties", gError)
 
     def save(self, concurrency = FailOnConflict):
-        return self.database.saveDocument(self, concurrency)
+        self.database.saveDocument(self, concurrency)
 
     @property
     def isMutable(self):

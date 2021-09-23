@@ -63,7 +63,7 @@ def decodeFleeceArray(farray, *, depth =1, mutable =False):
 
 # Decodes an FLDict
 def decodeFleeceDict(fdict, *, depth =1, mutable =False):
-    if lib.CBL_IsBlob(fdict):
+    if lib.FLDict_IsBlob(fdict):
         return Blob(None, fdict=fdict)
     elif depth <= 0:
         if mutable:

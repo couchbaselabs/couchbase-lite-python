@@ -4,7 +4,7 @@ September 2021
 
 This directory contains a Python API binding of [Couchbase Lite For C][CBL_C], based on [CFFI][CFFI].
 
-It's still incomplete, has only had some informal testing, and that only on macOS. It is **NOT SUPPORTED BY COUCHBASE**. Even if you are a Couchbase customer, our support team cannot help you with using this library.
+It's still incomplete, has only had some informal testing, mostly on macOS. It is **NOT SUPPORTED BY COUCHBASE**. Even if you are a Couchbase customer, our support team cannot help you with using this library.
 
 Here's a snippet of code to show what the API looks like:
 
@@ -39,7 +39,7 @@ Make sure you have the CFFI package:
 
     $ pip3 install cffi
 
-### Couchbae Lite For C
+### Couchbase Lite For C
 
 Next you need the Couchbase Lite For C shared library and headers. You can download them from Couchbase, or build them yourself using the [Git repo][CBL_C].
 

@@ -147,10 +147,10 @@ class QueryResult (object):
             return False
 
     def asArray(self):
-        return decodeFleece(CBLResultSet_ResultArray(self._ref))
+        return decodeFleece(lib.CBLResultSet_ResultArray(self._ref))
 
     def asDictionary(self):
-        return decodeFleece(CBLResultSet_ResultDict(self._ref))
+        return decodeFleece(lib.CBLResultSet_ResultDict(self._ref))
 
 
 

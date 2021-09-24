@@ -38,11 +38,6 @@
 // THIS FILE MUST BE UPDATED WHENEVER THE CBL C API CHANGES!
 
 
-//////// System Functions:
-
-void free(void *);
-
-
 //////// FLSlice.h
 
 typedef struct {const void *buf; size_t size;} FLSlice;

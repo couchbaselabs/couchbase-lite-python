@@ -29,7 +29,7 @@ class Blob (object):
 
     @property
     def digest(self):
-        return pystr(lib.CBLBlob_Digest(self._ref))
+        return sliceToString(lib.CBLBlob_Digest(self._ref))
 
     @property
     def length(self):
@@ -37,7 +37,7 @@ class Blob (object):
 
     @property
     def contentType(self):
-        return pystr(lib.CBLBlob_ContentType(self._ref))
+        return sliceToString(lib.CBLBlob_ContentType(self._ref))
     
     @property
     def data(self):

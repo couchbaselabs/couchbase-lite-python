@@ -52,9 +52,9 @@ Now you can build the Python binding library:
 
 This assumes Couchbase Lite has been installed into /usr/local. If not, you'll need to tell the script where to find it:
 
-    $ ./build.sh --include /path/to/include/ --libdir /path/to/libs/
+    $ ./build.sh --include /path/to/include/ --library /path/to/libcblite.dylib
 
-`/path/to/include/` should have a _subdirectory_ named `cbl` with the headers in it. And `/path/to/libs` should contain the `libcblite` library file.
+`/path/to/include/` must have a _subdirectory_ named `cbl` containing the CBL headers.
 
 ### Try it out
 

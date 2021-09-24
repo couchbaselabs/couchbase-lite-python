@@ -16,26 +16,27 @@
 // limitations under the License.
 //
 
+/*
+    This file is used by the CFFI library to generate Python bindings for Couchbase Lite
+    when `BuildPyCBL.py` is run. The output is a shared library in the `CouchbaseLite`
+    subdirectory called something like `_PyCBL.cpython-39-darwin.so` (the exact name is platform
+    specific.)
 
-// This file is used by the CFFI library to generate Python bindings for Couchbase Lite
-// when `BuildPyCBL.py` is run. The output is a shared library in the `CouchbaseLite`
-// subdirectory called something like `_PyCBL.cpython-39-darwin.so` (the exact name is platform
-// specific.)
-//
-// This file contains a modified version of the Couchbase Lite C headers. The CFFI parser is not
-// a full C parser; in particular, it doesn't have a preprocessor. It also has a few syntactic
-// extensions of its own. This means some changes need to be made to the headers:
-//
-// * Merge all headers into this file.
-// * Remove preprocessor directives like `#include`, `#define`, `#ifdef`, `#if`, `#pragma`.
-// * Remove preprocessor macros like `_cbl_nonnull`, `, `CBL_ENUM`, `CBL_PUBLIC`.
-// * Declare opaque struct types (like CBLBlob) as `typedef ... * TYPENAME`.
-// * Declare structs whose contents Python doesn't need to know as `struct { ...; }`.
-// * Declare glue routines for C callbacks, as `extern "Python"` functions.
-//
-// This file is up-to-date as of Couchbase Lite For C 3.0 beta, commit 0c7e1adf.
-//
-// THIS FILE MUST BE UPDATED WHENEVER THE CBL C API CHANGES!
+    This file contains a modified version of the Couchbase Lite C headers. The CFFI parser is not
+    a full C parser; in particular, it doesn't have a preprocessor. It also has a few syntactic
+    extensions of its own. This means some changes need to be made to the headers:
+
+    * Merge all headers into this file.
+    * Remove preprocessor directives like `#include`, `#define`, `#ifdef`, `#if`, `#pragma`.
+    * Remove preprocessor macros like `_cbl_nonnull`, `, `CBL_ENUM`, `CBL_PUBLIC`.
+    * Declare opaque struct types (like CBLBlob) as `typedef ... * TYPENAME`.
+    * Declare structs whose contents Python doesn't need to know as `struct { ...; }`.
+    * Declare glue routines for C callbacks, as `extern "Python"` functions.
+
+    This file is up-to-date as of Couchbase Lite For C 3.0 beta, commit 0c7e1adf.
+
+    THIS FILE MUST BE UPDATED WHENEVER THE CBL C API CHANGES!
+*/
 
 
 //////// FLSlice.h

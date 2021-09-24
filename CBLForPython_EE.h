@@ -16,10 +16,10 @@
 // limitations under the License.
 //
 
-// This file contains extra APIs only available in the Enterprise Edition
-// of Couchbase Lite For C.
-// For more information, see `CBLForPython.h`.
-
+/*
+    This file contains extra APIs only available in the Enterprise Edition of Couchbase Lite For C.
+    For more information, see `CBLForPython.h`.
+*/
 
 //////// CBLDatabase.h
 

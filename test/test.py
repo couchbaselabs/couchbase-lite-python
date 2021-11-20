@@ -17,9 +17,9 @@
 # limitations under the License.
 #
 
-from CouchbaseLite.Database import Database, DatabaseConfiguration
+from CouchbaseLite.Database import Database, DatabaseConfiguration, IndexConfiguration
 from CouchbaseLite.Document import Document, MutableDocument
-from CouchbaseLite.Query import JSONQuery
+from CouchbaseLite.Query import JSONQuery, N1QLLanguage, JSONLanguage
 import json
 
 Database.deleteFile("db", "/tmp")
@@ -43,6 +43,30 @@ dbListenerToken = db.addListener(dbListener)
 def canonicalJSON(str):
     obj = json.loads(str)
     return json.dumps(obj, sort_keys = True)
+
+
+assert(len(db.getIndexNames()) == 0)
+
+db.createIndex("ExampleN1QLColorIndex", IndexConfiguration(N1QLLanguage, 'color'))
+assert(len(db.getIndexNames()) == 1)
+assert("ExampleN1QLColorIndex" in db.getIndexNames())
+
+q = JSONQuery(db, {'WHAT': [['.flavor'], ['.numbers']], 'WHERE': ['=', ['.color'], 'green']})
+assert('ExampleN1QLColorIndex' in q.explanation)
+
+
+db.createIndex("ExampleJSONNestedPropIndex", IndexConfiguration(JSONLanguage, ["nested.nested"]))
+assert(len(db.getIndexNames()) == 2)
+assert("ExampleJSONNestedPropIndex" in db.getIndexNames())
+
+q = JSONQuery(db, {'WHAT': [['.nested'], ['.a'], ['.array']], 'WHERE': ['=', ['.nested.nested'], 'nested']})
+assert('ExampleJSONNestedPropIndex' in q.explanation)
+
+
+db.deleteIndex("ExampleN1QLColorIndex")
+assert(len(db.getIndexNames()) == 1)
+assert("ExampleN1QLColorIndex" not in db.getIndexNames())
+
 
 with db:
     doc = db.getDocument("foo")

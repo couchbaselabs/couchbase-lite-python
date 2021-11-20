@@ -20,8 +20,8 @@ from .common import *
 from .Collections import *
 import json
 
-JSONLanguage = 0
-N1QLLanguage = 1
+JSONLanguage = lib.kCBLJSONLanguage
+N1QLLanguage = lib.kCBLN1QLLanguage
 
 class Query (CBLObject):
 

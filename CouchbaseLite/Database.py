@@ -17,10 +17,28 @@
 
 import datetime
 import math
+from typing import Union, List
 
 from ._PyCBL import ffi, lib
 from .common import *
 from .Document import *
+from .Query import JSONLanguage
+
+
+def IndexConfiguration(expressionLanguage, expressions: Union[dict, list, str]):
+    """
+    Value Index Configuration in N1QL syntax.
+
+    :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
+    :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+
+    :return: A config tuple suitable for passing to a Database.createIndex method.
+    """
+    if expressionLanguage == JSONLanguage:
+        if not isinstance(expressions, str):
+            expressions = encodeJSON(expressions)
+    return expressionLanguage, stringParam(expressions)
+
 
 class DatabaseConfiguration:
     def __init__(self, directory):
@@ -79,6 +97,22 @@ class Database (CBLObject):
     def compact(self):
         if not lib.CBLDatabase_PerformMaintenance(self._ref, lib.kCBLMaintenanceTypeCompact, gError):
             raise CBLException("Couldn't compact database", gError)
+
+    def createIndex(self, name, config):
+        """
+        Creates a value index.
+
+        Indexes are persistent. If an identical index with that name already exists, nothing happens (and no error is returned.) If a non-identical index with that name already exists, it is deleted and re-created.
+        """
+        if not lib.CBLDatabase_CreateValueIndex(self._ref, stringParam(name), config, gError):
+            raise CBLException("Couldn't create index " + name, gError)
+
+    def getIndexNames(self) -> List[str]:
+        return decodeFleeceArray(lib.CBLDatabase_GetIndexNames(self._ref))
+
+    def deleteIndex(self, name):
+        if not lib.CBLDatabase_DeleteIndex(self._ref, stringParam(name), gError):
+            raise CBLException("Couldn't create index " + name, gError)
 
     # Attributes:
 

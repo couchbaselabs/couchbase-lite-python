@@ -48,6 +48,34 @@ class IndexConfiguration:
         return self.expressionLanguage, stringParam(self.expressions)
 
 
+class FullTextIndexConfiguration(IndexConfiguration):
+    """
+    Full-Text Index Configuration.
+    """
+    def __init__(self, expressionLanguage, expressions: Union[dict, list, str], ignoreAccents: bool = False,
+                 language: str = None):
+        """
+        :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
+        :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+        :param ignoreAccents: Should diacritical marks (accents) be ignored? Defaults to false. Generally this should be left false for non-English text.
+        :param language: The dominant language. Setting this enables word stemming, i.e. matching different cases of the same word ("big" and "bigger", for instance) and ignoring common "stop-words" ("the", "a", "of", etc.) Can be an ISO-639 language code or a lowercase (English) language name; supported languages are: da/danish, nl/dutch, en/english, fi/finnish, fr/french, de/german, hu/hungarian, it/italian, no/norwegian, pt/portuguese, ro/romanian, ru/russian, es/spanish, sv/swedish, tr/turkish. If left null, or set to an unrecognized language, no language-specific behaviors such as stemming and stop-word removal occur.
+        """
+        super().__init__(expressionLanguage, expressions)
+        self.ignoreAccents = ignoreAccents
+        self.language = language
+
+    def get_ffi_struct(self):
+        """
+        :return: A config tuple suitable for passing to a CBLFullTextIndexConfiguration C function parameter.
+        """
+        options = [self.ignoreAccents]
+
+        if self.language is not None:
+            options.append(stringParam(self.language))
+
+        return super().get_ffi_struct() + tuple(options)
+
+
 class DatabaseConfiguration:
     def __init__(self, directory):
         self.directory = directory
@@ -101,6 +129,15 @@ class Database (CBLObject):
         """
         if not lib.CBLDatabase_CreateValueIndex(self._ref, stringParam(name), config.get_ffi_struct(), gError):
             raise CBLException("Couldn't create index " + name, gError)
+
+    def createFullTextIndex(self, name, config: FullTextIndexConfiguration):
+        """
+        Creates a full-text index.
+
+        Indexes are persistent. If an identical index with that name already exists, nothing happens (and no error is returned.) If a non-identical index with that name already exists, it is deleted and re-created.
+        """
+        if not lib.CBLDatabase_CreateFullTextIndex(self._ref, stringParam(name), config.get_ffi_struct(), gError):
+            raise CBLException("Couldn't create full-text index " + name, gError)
 
     def getIndexNames(self) -> List[str]:
         return decodeFleeceArray(lib.CBLDatabase_GetIndexNames(self._ref))
@@ -187,7 +224,7 @@ class Database (CBLObject):
             timestamp = math.ceil(expDateTime.timestamp)
         if not lib.CBLDatabase_SetDocumentExpiration(self._ref, id, timestamp, gError):
             raise CBLException("Couldn't set document's expiration", gError)
-            
+
 
     # Listeners:
 

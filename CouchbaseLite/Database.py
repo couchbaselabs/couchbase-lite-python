@@ -25,19 +25,27 @@ from .Document import *
 from .Query import JSONLanguage
 
 
-def IndexConfiguration(expressionLanguage, expressions: Union[dict, list, str]):
+class IndexConfiguration:
     """
-    Value Index Configuration in N1QL syntax.
-
-    :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
-    :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
-
-    :return: A config tuple suitable for passing to a Database.createIndex method.
+    Value Index Configuration.
     """
-    if expressionLanguage == JSONLanguage:
-        if not isinstance(expressions, str):
-            expressions = encodeJSON(expressions)
-    return expressionLanguage, stringParam(expressions)
+    def __init__(self, expressionLanguage, expressions: Union[dict, list, str]):
+        """
+        :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
+        :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+        """
+        self.expressionLanguage = expressionLanguage
+        self.expressions = expressions
+
+        if expressionLanguage == JSONLanguage:
+            if not isinstance(expressions, str):
+                self.expressions = encodeJSON(expressions)
+
+    def get_ffi_struct(self):
+        """
+        :return: A config tuple suitable for passing to a CBLValueIndexConfiguration C function parameter.
+        """
+        return self.expressionLanguage, stringParam(self.expressions)
 
 
 class DatabaseConfiguration:
@@ -98,13 +106,13 @@ class Database (CBLObject):
         if not lib.CBLDatabase_PerformMaintenance(self._ref, lib.kCBLMaintenanceTypeCompact, gError):
             raise CBLException("Couldn't compact database", gError)
 
-    def createIndex(self, name, config):
+    def createIndex(self, name, config: IndexConfiguration):
         """
         Creates a value index.
 
         Indexes are persistent. If an identical index with that name already exists, nothing happens (and no error is returned.) If a non-identical index with that name already exists, it is deleted and re-created.
         """
-        if not lib.CBLDatabase_CreateValueIndex(self._ref, stringParam(name), config, gError):
+        if not lib.CBLDatabase_CreateValueIndex(self._ref, stringParam(name), config.get_ffi_struct(), gError):
             raise CBLException("Couldn't create index " + name, gError)
 
     def getIndexNames(self) -> List[str]:

@@ -17,7 +17,7 @@
 # limitations under the License.
 #
 
-from CouchbaseLite.Database import Database, DatabaseConfiguration, IndexConfiguration
+from CouchbaseLite.Database import Database, DatabaseConfiguration, IndexConfiguration, FullTextIndexConfiguration
 from CouchbaseLite.Document import Document, MutableDocument
 from CouchbaseLite.Query import JSONQuery, N1QLLanguage, JSONLanguage
 import json
@@ -67,6 +67,15 @@ db.deleteIndex("ExampleN1QLColorIndex")
 assert(len(db.getIndexNames()) == 1)
 assert("ExampleN1QLColorIndex" not in db.getIndexNames())
 
+
+db.createFullTextIndex('ExampleFullTextFlavorIndex',
+                       FullTextIndexConfiguration(expressionLanguage=JSONLanguage, expressions=[[".flavor"]],
+                                                  language='en'))
+assert(len(db.getIndexNames()) == 2)
+assert("ExampleFullTextFlavorIndex" in db.getIndexNames())
+
+q = JSONQuery(db, {'WHAT': [['.flavor']], 'WHERE': ['MATCH()', 'ExampleFullTextFlavorIndex', 'spice']})
+assert('ExampleFullTextFlavorIndex AS fts' in q.explanation)
 
 with db:
     doc = db.getDocument("foo")

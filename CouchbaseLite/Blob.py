@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from ._PyCBL import ffi, lib
+from _PyCBL import ffi, lib
 from .Collections import *
 from .common import *
 

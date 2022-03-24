@@ -18,7 +18,7 @@
 import datetime
 import math
 
-from ._PyCBL import ffi, lib
+from _PyCBL import ffi, lib
 from .common import *
 from .Document import *
 

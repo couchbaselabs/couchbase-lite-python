@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from ._PyCBL import ffi, lib
+from _PyCBL import ffi, lib
 
 def sliceToString(s):
     """Copies a FLSlice to a Python string."""

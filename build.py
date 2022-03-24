@@ -21,23 +21,30 @@
 
 import argparse
 import os.path
+import os
+from pathlib import Path
 import platform
 import shutil
+import subprocess
 from cffi import FFI    # `pip3 install cffi` to install this
 
 
 # TODO: Make the stuff below work with Windows
 
-DEFAULT_INCLUDE_DIR  = "/usr/local/include"
-DEFAULT_LIBRARY_PATH = "/usr/local/lib/libcblite"
 DEFAULT_LIBRARIES    = "cblite z"
 DEFAULT_LINK_ARGS    = ""
 
+ffibuilder = FFI()
+
 if platform.system() == "Darwin":
-    DEFAULT_LIBRARY_PATH += ".dylib"
-    DEFAULT_LINK_ARGS = "-rpath @loader_path"  # i.e. look for CBL dylib in same dir as bindings lib
+    DEFAULT_INCLUDE_DIR  = "/usr/local/include"
+    DEFAULT_LIBRARY_PATH = "/usr/local/lib/libcblite.3.dylib"
+elif platform.system() == "win32":
+    print("FOO")
 else:
-    DEFAULT_LIBRARY_PATH += ".so"
+    DEFAULT_INCLUDE_DIR  = "/usr/include"
+    triplet = subprocess.check_output("gcc -print-multiarch", shell=True).decode('ascii').strip()
+    DEFAULT_LIBRARY_PATH = f"/usr/lib/{triplet}/libcblite.so.3"
 
 
 def BuildLibrary(includeDir, python_includedir, lib_path, libraries, extra_link_args, buildEE, verbose):
@@ -49,9 +56,7 @@ def BuildLibrary(includeDir, python_includedir, lib_path, libraries, extra_link_
     # python 3.5 distutils breaks on Linux with absolute library path,
     # so make sure it is relative path
     lib_path = os.path.relpath(lib_path)
-
-    # Copy the CBL library here:
-    shutil.copy(lib_path, ".")
+    shutil.copy(lib_path, "..")
 
     # CFFI stuff -- see https://cffi.readthedocs.io/en/latest/index.html
 
@@ -59,19 +64,14 @@ def BuildLibrary(includeDir, python_includedir, lib_path, libraries, extra_link_
     # the symbols declared in cdef()
     cHeaderSource = r"""#include <cbl/CouchbaseLite.h>"""
 
-    ffibuilder = FFI()
     ffibuilder.cdef(CDeclarations(buildEE))
     ffibuilder.set_source(
         "_PyCBL",       # Module name
         cHeaderSource,
         libraries=libraries,
         include_dirs=include_dirs,
-        library_dirs=["."],
+        library_dirs=[lib_path],
         extra_link_args=extra_link_args)
-    ffibuilder.compile(verbose=verbose)
-
-    os.remove("_PyCBL.c")
-    os.remove("_PyCBL.o")
 
 
 def CDeclarations(buildEE):
@@ -120,6 +120,15 @@ if __name__ == "__main__":
 
     buildEE = (args.edition == 'EE')
 
-    print("Building Python bindings with headers from ", args.include, "/cbl  and library ", args.library)
+    print(f"Building Python bindings with headers from {args.include}/cbl and library {args.library}")
 
     BuildLibrary(args.include, args.python_includedir, args.library, args.link.split(), linkFlags, buildEE, args.verbose)
+    ffibuilder.compile(verbose=args.verbose)
+
+    os.remove("_PyCBL.c")
+    os.remove("_PyCBL.o")
+else: # Built using setuptools (probably)
+    last = os.getcwd()
+    os.chdir(Path(os.path.dirname(os.path.realpath(__file__)), "CouchbaseLite"))
+    BuildLibrary("", None, DEFAULT_LIBRARY_PATH, DEFAULT_LIBRARIES.split(), None, False, False)
+    os.chdir(last)

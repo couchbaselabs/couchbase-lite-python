@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-from ._PyCBL import ffi, lib
+from _PyCBL import ffi, lib
 from .common import *
 from .Blob import Blob
 from collections.abc import Sequence, Mapping

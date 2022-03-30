@@ -78,9 +78,7 @@ class Document (CBLObject):
 
     @property
     def JSON(self):
-        # TODO: c-api call doesn't exist any more, CBLDocument_PropertiesAsJSON
-        #       need to test the following to see if it works
-        return sliceToString(lib.CBLDocument_Properties(self._ref))
+        return encodeJSON(self.getProperties())
 
     def get(self, key, dflt = None):
         return self.properties.get(key, dflt)

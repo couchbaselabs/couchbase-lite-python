@@ -17,6 +17,12 @@
 
 from ._PyCBL import ffi, lib
 
+def cstr(str):
+    return ffi.new("char[]", str.encode("utf-8"))
+
+def pystr(cstr):
+    return str(ffi.string(cstr), "utf-8")
+
 def sliceToString(s):
     """Copies a FLSlice to a Python string."""
     if s.buf == None:
@@ -40,7 +46,7 @@ def sliceResultToBytes(sr):
 def asSlice(data):
     """Returns a FLSlice pointing to the data."""
     buffer = ffi.from_buffer(data)
-    s = ffi.new("FLSlice")
+    s = ffi.new("FLSlice*")
     s.buf = buffer
     s.size = len(buffer)
     return s

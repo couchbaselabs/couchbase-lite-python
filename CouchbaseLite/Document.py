@@ -35,7 +35,7 @@ class Document (CBLObject):
     @staticmethod
     def _get(database, id):
         ref = lib.CBLDatabase_GetDocument(database._ref, stringParam(id), gError)
-        if not ref:
+        if not ref or ref == ffi.NULL:
             if gError.code != 0:
                 raise CBLException("Couldn't get document " + id, gError)
             return None
@@ -44,14 +44,14 @@ class Document (CBLObject):
         doc._ref = ref
         return doc
 
-    def delete(self, concurrency = LastWriteWins):
+    def delete(self, database, concurrency = LastWriteWins):
         assert(self._ref)
-        if not lib.CBLDocument_Delete(self._ref, concurrency, gError):
+        if not lib.CBLDatabase_DeleteDocumentWithConcurrencyControl(database._ref, self._ref, concurrency, gError):
             raise CBLException("Couldn't delete document", gError)
 
-    def purge(self):
+    def purge(self, database):
         assert(self._ref)
-        if not lib.CBLDocument_Purge(self._ref, gError):
+        if not lib.CBLDatabase_PurgeDocument(database._ref, self._ref, gError):
             raise CBLException("Couldn't purge document", gError)
 
     def mutableCopy(self):
@@ -78,7 +78,7 @@ class Document (CBLObject):
 
     @property
     def JSON(self):
-        return sliceToString(lib.CBLDocument_PropertiesAsJSON(self._ref))
+        return encodeJSON(self.getProperties())
 
     def get(self, key, dflt = None):
         return self.properties.get(key, dflt)
@@ -103,7 +103,7 @@ class MutableDocument (Document):
     @staticmethod
     def _get(database, id):
         ref = lib.CBLDatabase_GetMutableDocument(database._ref, stringParam(id), gError)
-        if not ref:
+        if not ref or ref == ffi.NULL:
             if gError.code != 0:
                 raise CBLException("Couldn't get document " + id, gError)
             return None

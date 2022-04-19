@@ -18,10 +18,14 @@
 from ._PyCBL import ffi, lib
 from .common import *
 from .Collections import *
+from .Document import MutableDocument
 import json
 
 JSONLanguage = 0
 N1QLLanguage = 1
+
+ValueIndex = 0
+FullTextIndex = 1
 
 class Query (CBLObject):
 
@@ -57,8 +61,10 @@ class Query (CBLObject):
         return self._columns
 
     def setParameters(self, params):
-        jsonStr = encodeJSON(params)
-        lib.CBLQuery_SetParametersAsJSON(self._ref, stringParam(jsonStr))
+        doc = MutableDocument("foo")
+        doc.setProperties(params)
+        doc._prepareToSave()
+        lib.CBLQuery_SetParameters(self._ref, lib.CBLDocument_Properties(doc._ref))
 
     def execute(self):
         """Executes the query and returns a Generator of QueryResult objects."""
@@ -153,6 +159,65 @@ class QueryResult (object):
     def asDictionary(self):
         return decodeFleece(lib.CBLResultSet_ResultDict(self._ref))
 
+
+def createIndex(database, name, index_spec):
+    type = None
+    if index_spec != None:
+        type = index_spec.type
+        index_spec = index_spec._cblConfig()
+    
+    if type == ValueIndex:
+        success = lib.CBLDatabase_CreateValueIndex(database._ref, stringParam(name), index_spec[0], gError)
+
+    elif type == FullTextIndex:
+        success = lib.CBLDatabase_CreateFullTextIndex(database._ref, stringParam(name), index_spec[0], gError)
+
+    else:
+        success = None
+
+    if not success:
+        raise CBLException("Index creation failed", gError)
+
+def deleteIndex(database, name):    
+    success = lib.CBLDatabase_DeleteIndex(database._ref, stringParam(name), gError)
+    if not success:
+        raise CBLException("Index deletion failed", gError)
+
+# TODO - this is returning an empty array
+def listIndexNames(database):    
+    mutable_array = lib.CBLDatabase_IndexNames(database._ref)
+    array = lib.FLMutableArray_GetSource(mutable_array)
+    return decodeFleece(array)
+    
+
+class IndexSpec:
+    def __init__(self, key_expressions, is_value_index = True, ignore_accents = False, language = None, query_language = lib.kCBLN1QLLanguage):
+        if is_value_index:
+            self.type = ValueIndex
+        else:
+            self.type = FullTextIndex
+        if language is None:
+            self.language = ffi.NULL
+        else:
+            self.language = stringParam(language)
+        
+        self.key_expressions_json = stringParam(encodeJSON(key_expressions))
+        self.ignore_accents = ignore_accents
+        self.query_language = query_language
+
+    def _cblConfig(self):
+        if self.type == ValueIndex:
+            return ffi.new("CBLValueIndexConfiguration*",
+                           [self.query_language,
+                            self.key_expressions_json])
+
+        elif self.type == FullTextIndex:
+            return ffi.new("CBLFullTextIndexConfiguration*",
+                           [self.query_language,
+                            stringParam(expressions),
+                            self.ignore_accents,
+                            self.language])
+        return None
 
 
 @ffi.def_extern()

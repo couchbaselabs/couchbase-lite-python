@@ -22,7 +22,7 @@ from .common import *
 class Blob (object):
     def __init__(self, data, *, contentType =None, fdict =None):
         if fdict != None:
-            super.__init__(lib.CBLBlob_Get(fdict), "Dict is not a Blob")
+            super.__init__(lib.FLDict_GetBlob(fdict), "Dict is not a Blob")
         else:
             super.__init__(lib.CBLBlob_CreateWithData(contentType, asSlice(data)),
                            "Failed to create Blob")
@@ -44,7 +44,7 @@ class Blob (object):
         if "_data" in self.__dict__:
             return self._data
         elif self.digest != None:
-            sliceResult = lib.CBLBlob_LoadContent(self._ref, gError)
+            sliceResult = lib.CBLBlob_Content(self._ref, gError)
             # OPT: This copies the bytes
             result = sliceResultToBytes(sliceResult)
             lib.FLSliceResult_Release(sliceResult)

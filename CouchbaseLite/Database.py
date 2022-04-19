@@ -29,6 +29,10 @@ class DatabaseConfiguration:
     def __repr__(self):
         return "DatabaseConfiguration['" + self.directory + "']"
     # TODO: Add encryption key for EE support
+    
+    def _cblConfig(self):
+        self._cblDir = stringParam(self.directory)  # to keep string from being GC'd
+        return ffi.new("CBLDatabaseConfiguration*", [self._cblDir])
 
 
 class Database (CBLObject):
@@ -54,6 +58,15 @@ class Database (CBLObject):
         if not lib.CBLDatabase_Delete(self._ref, gError):
             raise CBLException("Couldn't delete database", gError)
 
+    def copy(self, to_path, to_name):
+        config = DatabaseConfiguration(to_path)
+        config = config._cblConfig()
+
+        from_path = self.getPath()
+
+        if not lib.CBL_CopyDatabase(stringParam(from_path), stringParam(to_name), config, gError):
+            raise CBLException("Couldn't copy database", gError)
+
     @staticmethod
     def deleteFile(name, dir):
         if lib.CBL_DeleteDatabase(stringParam(name), stringParam(dir), gError):
@@ -64,7 +77,7 @@ class Database (CBLObject):
             raise CBLException("Couldn't delete database file", gError)
 
     def compact(self):
-        if not lib.CBLDatabase_Compact(self._ref, gError):
+        if not lib.CBLDatabase_PerformMaintenance(self._ref, lib.kCBLMaintenanceTypeCompact, gError):
             raise CBLException("Couldn't compact database", gError)
 
     # Attributes:
@@ -101,7 +114,7 @@ class Database (CBLObject):
             raise CBLException("Couldn't delete document", gError)
 
     def purgeDocument(self, id):
-        if not lib.CBLDatabase_PurgeDocument(self._ref, stringParam(id), gError):
+        if not lib.CBLDatabase_PurgeDocumentByID(self._ref, stringParam(id), gError):
             raise CBLException("Couldn't purge document", gError)
 
     def __getitem__(self, id):
@@ -131,7 +144,7 @@ class Database (CBLObject):
     # Expiration:
     
     def getDocumentExpiration(self, id):
-        exp = lib.CBLDatabase_GetDocumentExpiration(self._ref, id, gError)
+        exp = lib.CBLDatabase_GetDocumentExpiration(self._ref, stringParam(id), gError)
         if exp > 0:
             return datetime.fromtimestamp(exp)
         elif exp == 0:
@@ -143,7 +156,7 @@ class Database (CBLObject):
         timestamp = 0
         if expDateTime != None:
             timestamp = math.ceil(expDateTime.timestamp)
-        if not lib.CBLDatabase_SetDocumentExpiration(self._ref, id, timestamp, gError):
+        if not lib.CBLDatabase_SetDocumentExpiration(self._ref, stringParam(id), timestamp, gError):
             raise CBLException("Couldn't set document's expiration", gError)
             
 
@@ -158,7 +171,7 @@ class Database (CBLObject):
     def addDocumentListener(self, docID, listener):
         handle = ffi.new_handle(listener)
         self.listeners.add(handle)
-        c_token = lib.CBLDatabase_AddDocumentChangeListener(self._ref, docID,
+        c_token = lib.CBLDatabase_AddDocumentChangeListener(self._ref, stringParam(docID),
                                                             lib.databaseListenerCallback, handle)
         return ListenerToken(self, handle, c_token)
 

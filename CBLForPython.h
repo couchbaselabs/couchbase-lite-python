@@ -515,6 +515,11 @@ typedef struct {
 } CBLReplicatorConfiguration;
 
 
+extern "Python" bool pushFilterCallback(void *context, CBLDocument* document,
+                                              bool isDeleted);
+extern "Python" bool pullFilterCallback(void *context, CBLDocument* document,
+                                              bool isDeleted);
+
 /** @} */
 
 

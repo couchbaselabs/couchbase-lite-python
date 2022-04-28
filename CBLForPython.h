@@ -295,8 +295,21 @@ extern "Python" void documentListenerCallback(void *context, const CBLDatabase*,
 
 //////// CBLLog.h
 
-typedef uint8_t CBLLogDomain;
-typedef uint8_t CBLLogLevel;
+typedef enum {
+    kCBLLogDomainDatabase,
+    kCBLLogDomainQuery,
+    kCBLLogDomainReplicator,
+    kCBLLogDomainNetwork
+} CBLLogDomain;
+
+typedef enum {
+    kCBLLogDebug,
+    kCBLLogVerbose,
+    kCBLLogInfo,
+    kCBLLogWarning,
+    kCBLLogError,
+    kCBLLogNone
+} CBLLogLevel;
 
 void CBL_Log(CBLLogDomain domain, CBLLogLevel level, const char *format, ...);
 void CBL_LogMessage(CBLLogDomain domain,
@@ -308,6 +321,8 @@ void CBLLog_SetConsoleLevel(CBLLogLevel);
 typedef void (*CBLLogCallback)(CBLLogDomain domain,
                                CBLLogLevel level,
                                FLString message);
+
+extern "Python" void logCallback(CBLLogDomain domain, CBLLogLevel level, FLString message);
 
 CBLLogLevel CBLLog_CallbackLevel(void);
 void CBLLog_SetCallbackLevel(CBLLogLevel);

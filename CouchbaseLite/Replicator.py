@@ -2,6 +2,10 @@ from ._PyCBL import ffi, lib
 from .common import *
 
 
+def testme(username, password):
+    return lib.CBLAuth_CreatePassword(stringParam(username), stringParam(password))
+
+
 class ReplicatorConfiguration:
     def __init__(self, database, url, push_filter, pull_filter, username, password, cert_path):
         pinned_server_cert = []
@@ -11,10 +15,14 @@ class ReplicatorConfiguration:
 
         self.database = database
         self.endpoint = lib.CBLEndpoint_CreateWithURL(stringParam(url), gError)
-        self.type = 0
+        self.replicator_type = 0
         self.continuous = True
+        self.disable_auto_purge = True
+        self.max_atempts = 0
+        self.max_attempt_wait_time = 0
+        self.heartbeat = 0
         self.authenticator = lib.CBLAuth_CreatePassword(stringParam(username), stringParam(password))
-        self.proxy_settings = ffi.NULL
+        self.proxy = ffi.NULL
         self.headers = ffi.NULL
         self.pinned_server_cert = pinned_server_cert
         self.truested_root_cert = []
@@ -29,10 +37,14 @@ class ReplicatorConfiguration:
         return ffi.new("CBLReplicatorConfiguration*",
                        [self.database._ref,
                         self.endpoint,
-                        self.type,
+                        self.replicator_type,
                         self.continuous,
+                        self.disable_auto_purge,
+                        self.max_atempts,
+                        self.max_attempt_wait_time,
+                        self.heartbeat,
                         self.authenticator,
-                        self.proxy_settings,
+                        self.proxy,
                         self.headers,
                         self.pinned_server_cert,
                         self.truested_root_cert,

@@ -21,8 +21,8 @@ from .Collections import *
 from .Document import MutableDocument
 import json
 
-JSONLanguage = 0
-N1QLLanguage = 1
+JSONLanguage = lib.kCBLJSONLanguage
+N1QLLanguage = lib.kCBLN1QLLanguage
 
 ValueIndex = 0
 FullTextIndex = 1

@@ -531,9 +531,9 @@ typedef struct {
 
 
 extern "Python" bool pushFilterCallback(void *context, CBLDocument* document,
-                                              bool isDeleted);
+                                              CBLDocumentFlags flags);
 extern "Python" bool pullFilterCallback(void *context, CBLDocument* document,
-                                              bool isDeleted);
+                                              CBLDocumentFlags flags);
 
 /** @} */
 

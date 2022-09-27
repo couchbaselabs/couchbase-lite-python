@@ -2,10 +2,6 @@ from ._PyCBL import ffi, lib
 from .common import *
 
 
-def testme(username, password):
-    return lib.CBLAuth_CreatePassword(stringParam(username), stringParam(password))
-
-
 class ReplicatorConfiguration:
     def __init__(self, database, url, push_filter, pull_filter, username, password, cert_path):
         pinned_server_cert = []

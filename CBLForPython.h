@@ -534,6 +534,10 @@ extern "Python" bool pushFilterCallback(void *context, CBLDocument* document,
                                               CBLDocumentFlags flags);
 extern "Python" bool pullFilterCallback(void *context, CBLDocument* document,
                                               CBLDocumentFlags flags);
+extern "Python" const CBLDocument* conflictResolverCallback(void* context,
+                                              FLString documentID,
+                                              const CBLDocument* localDocument,
+                                              const CBLDocument* remoteDocument);
 
 /** @} */
 

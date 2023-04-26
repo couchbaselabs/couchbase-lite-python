@@ -3,7 +3,7 @@ from .common import *
 
 
 class ReplicatorConfiguration:
-    def __init__(self, database, url, push_filter, pull_filter, username, password, cert_path):
+    def __init__(self, database, url, push_filter, pull_filter, conflict_resolver,  username, password, cert_path):
         pinned_server_cert = []
         if cert_path:
             cert_as_bytes = open(cert_path, "rb").read()
@@ -26,7 +26,7 @@ class ReplicatorConfiguration:
         self.document_ids = ffi.NULL
         self.push_filter = push_filter
         self.pull_filter = pull_filter
-        self.conflict_resolver = ffi.NULL
+        self.conflict_resolver = conflict_resolver
         self.context = ffi.NULL
 
     def _cblConfig(self):

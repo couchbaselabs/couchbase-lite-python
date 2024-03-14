@@ -51,7 +51,11 @@ bool FLSlice_Equal(FLSlice a, FLSlice b);
 int FLSlice_Compare(FLSlice, FLSlice);
 FLSliceResult FLSliceResult_Retain(FLSliceResult);
 void FLSliceResult_Release(FLSliceResult);
+uint32_t FLSlice_Hash(FLSlice);
+bool FLSlice_ToCString(FLSlice, char*, size_t);
+FLSliceResult FLSliceResult_New(size_t);
 FLSliceResult FLSlice_Copy(FLSlice);
+void FL_WipeMemory(void *, size_t);
 
 
 
@@ -63,7 +67,22 @@ typedef ... * FLDict;
 typedef ... * FLMutableArray;  
 typedef ... * FLMutableDict;   
 typedef ... * FLSlot;
+typedef ... * FLEncoder;
+typedef ... * FLDoc;
+typedef ... * FLSharedKeys;
 typedef unsigned FLError;
+
+typedef enum {
+    kFLUntrusted,
+    kFLTrusted
+} FLTrust;
+
+
+typedef int64_t FLTimestamp;
+
+FLTimestamp FLTimestamp_Now(void);
+FLStringResult FLTimestamp_ToString(FLTimestamp timestamp, bool asUTC);
+FLTimestamp FLTimestamp_FromString(FLString str);
 
 typedef enum {
     kFLUndefined = -1, 
@@ -86,8 +105,15 @@ uint64_t FLValue_AsUnsigned(FLValue);
 float FLValue_AsFloat(FLValue);
 double FLValue_AsDouble(FLValue);
 FLString FLValue_AsString(FLValue);
+FLTimestamp FLValue_AsTimestamp(FLValue);
+FLSlice FLValue_AsData(FLValue);
 FLArray FLValue_AsArray(FLValue);
 FLDict FLValue_AsDict(FLValue);
+FLStringResult FLValue_ToString(FLValue);
+bool FLValue_IsEqual(FLValue v1, FLValue v2);
+bool FLValue_IsMutable(FLValue);
+FLValue FLValue_Retain(FLValue);
+void FLValue_Release(FLValue);
 
 typedef struct { ...; } FLArrayIterator;
 uint32_t FLArray_Count(FLArray);
@@ -98,6 +124,9 @@ FLValue FLArrayIterator_GetValueAt(const FLArrayIterator*, uint32_t offset);
 uint32_t FLArrayIterator_GetCount(const FLArrayIterator*);
 bool FLArrayIterator_Next(FLArrayIterator*);
 
+bool FLArray_IsEmpty(FLArray);
+FLMutableArray FLArray_AsMutable(FLArray);
+
 typedef struct { ...; } FLDictIterator;
 uint32_t FLDict_Count(FLDict);
 FLValue FLDict_Get(FLDict, FLSlice keyString);
@@ -107,6 +136,161 @@ FLValue FLDictIterator_GetValue(const FLDictIterator*);
 uint32_t FLDictIterator_GetCount(const FLDictIterator* );
 bool FLDictIterator_Next(FLDictIterator*);
 void FLDictIterator_End(FLDictIterator*);
+bool FLDict_IsEmpty(FLDict);
+FLMutableDict FLDict_AsMutable(FLDict);
+FLValue FLDictIterator_GetKey(const FLDictIterator*);
+
+typedef struct { ...; } FLDictKey;
+FLDictKey FLDictKey_Init(FLSlice string);
+FLString FLDictKey_GetString(const FLDictKey*);
+FLValue FLDict_GetWithKey(FLDict, FLDictKey*);
+
+typedef ... * FLDeepIterator;
+FLDeepIterator FLDeepIterator_New(FLValue);
+void FLDeepIterator_Free(FLDeepIterator);
+FLValue FLDeepIterator_GetValue(FLDeepIterator);
+FLValue FLDeepIterator_GetParent(FLDeepIterator);
+FLSlice FLDeepIterator_GetKey(FLDeepIterator);
+uint32_t FLDeepIterator_GetIndex(FLDeepIterator);
+size_t FLDeepIterator_GetDepth(FLDeepIterator);
+void FLDeepIterator_SkipChildren(FLDeepIterator);
+bool FLDeepIterator_Next(FLDeepIterator);
+
+typedef struct {
+    FLSlice key;
+    uint32_t index;
+} FLPathComponent;
+
+void FLDeepIterator_GetPath(FLDeepIterator, FLPathComponent** outPath, size_t*);
+FLSliceResult FLDeepIterator_GetPathString(FLDeepIterator);
+FLSliceResult FLDeepIterator_GetJSONPointer(FLDeepIterator);
+
+FLDoc FLDoc_FromResultData(FLSliceResult data, FLTrust, FLSharedKeys, FLSlice externData);
+
+void FLDoc_Release(FLDoc);
+FLDoc FLDoc_Retain(FLDoc);
+FLSlice FLDoc_GetData(FLDoc);
+FLSliceResult FLDoc_GetAllocedData(FLDoc);
+FLValue FLDoc_GetRoot(FLDoc);
+FLSharedKeys FLDoc_GetSharedKeys(FLDoc);
+FLDoc FLValue_FindDoc(FLValue);
+bool FLDoc_SetAssociated(FLDoc doc, void *pointer, const char *type);
+void* FLDoc_GetAssociated(FLDoc doc, const char *type);
+
+typedef enum {
+    kFLEncodeFleece,
+    kFLEncodeJSON,
+    kFLEncodeJSON5
+} FLEncoderFormat;
+
+FLEncoder FLEncoder_New(void);
+
+FLEncoder FLEncoder_NewWithOptions(FLEncoderFormat format, size_t reserveSize, bool uniqueStrings);
+
+FLEncoder FLEncoder_NewWritingToFile(FILE*, bool uniqueStrings);
+void FLEncoder_Free(FLEncoder);
+void FLEncoder_SetSharedKeys(FLEncoder, FLSharedKeys);
+void FLEncoder_SetExtraInfo(FLEncoder, void* info);
+void* FLEncoder_GetExtraInfo(FLEncoder);
+void FLEncoder_Reset(FLEncoder);
+size_t FLEncoder_BytesWritten(FLEncoder);
+bool FLEncoder_WriteNull(FLEncoder);
+bool FLEncoder_WriteUndefined(FLEncoder);
+bool FLEncoder_WriteBool(FLEncoder, bool);
+bool FLEncoder_WriteInt(FLEncoder, int64_t);
+bool FLEncoder_WriteUInt(FLEncoder, uint64_t);
+bool FLEncoder_WriteFloat(FLEncoder, float);
+bool FLEncoder_WriteDouble(FLEncoder, double);
+bool FLEncoder_WriteString(FLEncoder, FLString);
+bool FLEncoder_WriteDateString(FLEncoder encoder, FLTimestamp ts, bool asUTC);
+bool FLEncoder_WriteData(FLEncoder, FLSlice);
+bool FLEncoder_WriteValue(FLEncoder, FLValue);
+bool FLEncoder_BeginArray(FLEncoder, size_t reserveCount);
+bool FLEncoder_EndArray(FLEncoder);
+bool FLEncoder_BeginDict(FLEncoder, size_t reserveCount);
+bool FLEncoder_WriteKey(FLEncoder, FLString);
+bool FLEncoder_WriteKeyValue(FLEncoder, FLValue);
+bool FLEncoder_EndDict(FLEncoder);
+bool FLEncoder_WriteRaw(FLEncoder, FLSlice);
+FLDoc FLEncoder_FinishDoc(FLEncoder, FLError* outError);
+FLSliceResult FLEncoder_Finish(FLEncoder, FLError* outError);
+FLError FLEncoder_GetError(FLEncoder);
+const char* FLEncoder_GetErrorMessage(FLEncoder);
+
+FLStringResult FLValue_ToJSON(FLValue);
+FLStringResult FLValue_ToJSON5(FLValue);
+FLStringResult FLValue_ToJSONX(FLValue v, bool json5, bool canonicalForm);
+FLDoc FLDoc_FromJSON(FLSlice json, FLError* outError);
+FLMutableArray FLMutableArray_NewFromJSON(FLString json, FLError* outError);
+FLMutableDict FLMutableDict_NewFromJSON(FLString json, FLError* outError);
+bool FLEncoder_ConvertJSON(FLEncoder, FLSlice json);
+
+typedef ... * FLKeyPath;
+FLKeyPath FLKeyPath_New(FLSlice specifier, FLError* outError);
+void FLKeyPath_Free(FLKeyPath);
+FLValue FLKeyPath_Eval(FLKeyPath, FLValue root);
+
+FLValue FLKeyPath_EvalOnce(FLSlice specifier, FLValue root, FLError* outError);
+FLStringResult FLKeyPath_ToString(FLKeyPath path);
+bool FLKeyPath_Equals(FLKeyPath path1, FLKeyPath path2);
+bool FLKeyPath_GetElement(FLKeyPath, size_t i, FLSlice *outDictKey, int32_t *outArrayIndex);
+
+typedef enum {
+    kFLDefaultCopy        = 0,
+    kFLDeepCopy           = 1,
+    kFLCopyImmutables     = 2,
+    kFLDeepCopyImmutables = (kFLDeepCopy | kFLCopyImmutables),
+} FLCopyFlags;
+
+FLMutableArray FLArray_MutableCopy(FLArray, FLCopyFlags);
+
+FLMutableArray FLMutableArray_New(void);
+
+FLArray FLMutableArray_GetSource(FLMutableArray);
+
+bool FLMutableArray_IsChanged(FLMutableArray);
+void FLMutableArray_SetChanged(FLMutableArray, bool changed);
+
+void FLMutableArray_Insert(FLMutableArray array, uint32_t firstIndex, uint32_t count);
+
+void FLMutableArray_Remove(FLMutableArray array, uint32_t firstIndex, uint32_t count);
+
+void FLMutableArray_Resize(FLMutableArray array, uint32_t size);
+
+FLMutableArray FLMutableArray_GetMutableArray(FLMutableArray, uint32_t index);
+
+FLMutableDict FLMutableArray_GetMutableDict(FLMutableArray, uint32_t index);
+FLMutableDict FLDict_MutableCopy(FLDict source, FLCopyFlags);
+FLMutableDict FLMutableDict_New(void);
+FLDict FLMutableDict_GetSource(FLMutableDict);
+bool FLMutableDict_IsChanged(FLMutableDict);
+void FLMutableDict_SetChanged(FLMutableDict, bool);
+void FLMutableDict_Remove(FLMutableDict, FLString key);
+void FLMutableDict_RemoveAll(FLMutableDict);
+
+FLMutableArray FLMutableDict_GetMutableArray(FLMutableDict, FLString key);
+
+FLMutableDict FLMutableDict_GetMutableDict(FLMutableDict, FLString key);
+
+FLValue FLValue_NewString(FLString);
+
+FLValue FLValue_NewData(FLSlice);
+
+FLSlot FLMutableArray_Set(FLMutableArray, uint32_t index);
+
+FLSlot FLMutableArray_Append(FLMutableArray);
+
+FLSlot FLMutableDict_Set(FLMutableDict, FLString key);
+
+void FLSlot_SetNull(FLSlot);
+void FLSlot_SetBool(FLSlot, bool);
+void FLSlot_SetInt(FLSlot, int64_t);
+void FLSlot_SetUInt(FLSlot, uint64_t);
+void FLSlot_SetFloat(FLSlot, float);
+void FLSlot_SetDouble(FLSlot, double);
+void FLSlot_SetString(FLSlot, FLString);
+void FLSlot_SetData(FLSlot, FLSlice);
+void FLSlot_SetValue(FLSlot, FLValue);
 
 
 //////// CBLBase.h
@@ -138,6 +322,8 @@ typedef ... CBLListenerToken;
 typedef ... CBLQuery;
 typedef ... CBLResultSet;
 typedef ... CBLReplicator;
+typedef ... CBLScope;
+typedef ... CBLCollection;
 
 void CBLListener_Remove(CBLListenerToken*);
 
@@ -161,6 +347,10 @@ int CBLBlobReader_Read(CBLBlobReadStream* stream, void *dst, size_t maxLength, C
 void CBLBlobReader_Close(CBLBlobReadStream*);
 bool CBLBlob_Equals(CBLBlob* blob, CBLBlob* anotherBlob);
 
+typedef uint8_t CBLSeekBase;
+int64_t CBLBlobReader_Seek(CBLBlobReadStream* stream, int64_t offset, CBLSeekBase base, CBLError* outError);
+uint64_t CBLBlobReader_Position(CBLBlobReadStream* stream);
+
 CBLBlob* CBLBlob_CreateWithData(FLString contentType, FLSlice contents);
 
 typedef ... CBLBlobWriteStream;
@@ -168,8 +358,6 @@ CBLBlobWriteStream* CBLBlobWriter_Create(CBLDatabase *db, CBLError *outError);
 void CBLBlobWriter_Close(CBLBlobWriteStream*);
 bool CBLBlobWriter_Write(CBLBlobWriteStream* writer, const void *data, size_t length, CBLError *outError);
 CBLBlob* CBLBlob_CreateWithStream(FLString contentType, CBLBlobWriteStream* writer);
-
-void FLSlot_SetBlob(FLSlot slot, CBLBlob* blob);
 
 const CBLBlob* CBLDatabase_GetBlob(CBLDatabase* db, FLDict properties,
                                    CBLError* outError);
@@ -191,6 +379,8 @@ typedef enum {
     kCBLMaintenanceTypeOptimize,
     kCBLMaintenanceTypeFullOptimize
 } CBLMaintenanceType;
+
+CBLDatabaseConfiguration CBLDatabaseConfiguration_Default(void);
 
 bool CBL_DatabaseExists(FLString name, FLString inDirectory);
 bool CBL_CopyDatabase(FLString fromPath,
@@ -222,6 +412,9 @@ extern "Python" void databaseListenerCallback(void *context, const CBLDatabase* 
 CBLListenerToken* CBLDatabase_AddChangeListener(const CBLDatabase* db,
                                      CBLDatabaseChangeListener listener,
                                      void *context);
+typedef void (*CBLNotificationsReadyCallback)(void* context, CBLDatabase* db);
+void CBLDatabase_BufferNotifications(CBLDatabase *db, CBLNotificationsReadyCallback callback, void* context);
+void CBLDatabase_SendNotifications(CBLDatabase *db);
 
 
 
@@ -268,9 +461,12 @@ CBLDocument* CBLDocument_Create(void);
 CBLDocument* CBLDocument_CreateWithID(FLString docID);
 CBLDocument* CBLDocument_MutableCopy(const CBLDocument* original);
 FLString CBLDocument_ID(const CBLDocument*);
+FLString CBLDocument_RevisionID(const CBLDocument*);
 uint64_t CBLDocument_Sequence(const CBLDocument*);
+CBLCollection* CBLDocument_Collection(const CBLDocument*);
 FLDict CBLDocument_Properties(const CBLDocument*);
 FLMutableDict CBLDocument_MutableProperties(CBLDocument*);
+void CBLDocument_SetProperties(CBLDocument*, FLMutableDict properties);
 FLSliceResult CBLDocument_CreateJSON(const CBLDocument*);
 bool CBLDocument_SetJSON(CBLDocument*, FLSlice json, CBLError*);
 
@@ -329,6 +525,16 @@ void CBLLog_SetCallbackLevel(CBLLogLevel);
 CBLLogCallback CBLLog_Callback(void);
 void CBLLog_SetCallback(CBLLogCallback callback);
 
+typedef struct {
+    CBLLogLevel level;       ///< The minimum level of message to write (Required).
+    FLString directory;      ///< The directory where log files will be created (Required).
+    uint32_t maxRotateCount;
+    size_t maxSize;
+    bool usePlaintext;
+} CBLLogFileConfiguration;
+
+const CBLLogFileConfiguration* CBLLog_FileConfig(void);
+bool CBLLog_SetFileConfig(CBLLogFileConfiguration, CBLError*);
 
 
 //////// CBLQuery.h
@@ -396,6 +602,75 @@ bool CBLDatabase_DeleteIndex(CBLDatabase *db,
                              CBLError* outError);
 
 FLArray CBLDatabase_GetIndexNames(CBLDatabase *db);
+
+
+
+//////// CBLCollection.h
+
+FLMutableArray CBLDatabase_ScopeNames(const CBLDatabase* db, CBLError* outError);
+
+FLMutableArray CBLDatabase_CollectionNames(const CBLDatabase* db, FLString scopeName, CBLError* outError);
+
+CBLScope* CBLDatabase_Scope(const CBLDatabase* db, FLString scopeName, CBLError* outError);
+
+CBLCollection* CBLDatabase_Collection(const CBLDatabase* db, FLString collectionName, FLString scopeName, CBLError* outError);
+
+CBLCollection* CBLDatabase_CreateCollection(CBLDatabase* db, FLString collectionName, FLString scopeName, CBLError* outError);
+
+bool CBLDatabase_DeleteCollection(CBLDatabase* db, FLString collectionName, FLString scopeName, CBLError* outError);
+
+CBLScope* CBLDatabase_DefaultScope(const CBLDatabase* db, CBLError* outError);
+
+CBLCollection* CBLDatabase_DefaultCollection(const CBLDatabase* db, CBLError* outError);
+
+CBLScope* CBLCollection_Scope(const CBLCollection* collection);
+
+FLString CBLCollection_Name(const CBLCollection* collection);
+
+uint64_t CBLCollection_Count(const CBLCollection* collection);
+
+const CBLDocument* CBLCollection_GetDocument(const CBLCollection* collection, FLString docID, CBLError* outError);
+
+bool CBLCollection_SaveDocument(CBLCollection* collection, CBLDocument* doc, CBLError* outError);
+
+bool CBLCollection_SaveDocumentWithConcurrencyControl(CBLCollection* collection, CBLDocument* doc, CBLConcurrencyControl concurrency, CBLError* outError);
+
+bool CBLCollection_SaveDocumentWithConflictHandler(CBLCollection* collection, CBLDocument* doc, CBLConflictHandler conflictHandler, void* context, CBLError* outError);
+
+bool CBLCollection_DeleteDocument(CBLCollection *collection, const CBLDocument* document, CBLError* outError);
+
+bool CBLCollection_DeleteDocumentWithConcurrencyControl(CBLCollection *collection, const CBLDocument* document, CBLConcurrencyControl concurrency, CBLError*outError);
+
+bool CBLCollection_PurgeDocument(CBLCollection* collection, const CBLDocument* document, CBLError* outError);
+
+bool CBLCollection_PurgeDocumentByID(CBLCollection* collection, FLString docID, CBLError* outError);
+
+CBLTimestamp CBLCollection_GetDocumentExpiration(CBLCollection* collection, FLSlice docID, CBLError* outError);
+
+bool CBLCollection_SetDocumentExpiration(CBLCollection* collection, FLSlice docID, CBLTimestamp expiration, CBLError* outError);
+
+CBLDocument* CBLCollection_GetMutableDocument(CBLCollection* collection, FLString docID, CBLError*outError);
+
+bool CBLCollection_CreateValueIndex(CBLCollection *collection, FLString name, CBLValueIndexConfiguration config, CBLError* outError);
+
+bool CBLCollection_CreateFullTextIndex(CBLCollection *collection, FLString name, CBLFullTextIndexConfiguration config, CBLError* outError);
+
+bool CBLCollection_DeleteIndex(CBLCollection *collection, FLString name, CBLError* outError);
+
+FLMutableArray CBLCollection_GetIndexNames(CBLCollection *collection, CBLError* outError);
+
+typedef ... CBLCollectionChange;
+
+typedef void (*CBLCollectionChangeListener)(void* context, const CBLCollectionChange* change);
+
+CBLListenerToken* CBLCollection_AddChangeListener(const CBLCollection* collection, CBLCollectionChangeListener listener, void* context);
+
+typedef... CBLDocumentChange;
+
+typedef void (*CBLCollectionDocumentChangeListener)(void *context, const CBLDocumentChange* change);
+
+CBLListenerToken* CBLCollection_AddDocumentChangeListener(const CBLCollection* collection, FLString docID, CBLCollectionDocumentChangeListener listener, void* context);
+
 
 
 
@@ -499,6 +774,15 @@ typedef struct {
     FLString password;               ///< Password for proxy auth
 } CBLProxySettings;
 
+typedef struct {
+    CBLCollection* collection;
+    CBLConflictResolver conflictResolver;
+    CBLReplicationFilter pushFilter;
+    CBLReplicationFilter pullFilter;
+    FLArray channels;
+    FLArray  documentIDs;
+} CBLReplicationCollection;
+
 /** The configuration of a replicator. */
 typedef struct {
     CBLDatabase* database;              ///< The database to replicate
@@ -527,6 +811,11 @@ typedef struct {
     CBLReplicationFilter pullFilter;    ///< Optional callback to validate incoming docs
     CBLConflictResolver conflictResolver;///< Optional conflict-resolver callback
     void* context;                      ///< Arbitrary value that will be passed to callbacks
+    
+    CBLReplicationCollection* collections;
+    size_t collectionCount;
+    //-- Advanced HTTP settings:
+    bool acceptParentDomainCookies;
 } CBLReplicatorConfiguration;
 
 
@@ -640,6 +929,9 @@ bool CBLReplicator_IsDocumentPending(CBLReplicator *repl,
                                      FLString docID,
                                      CBLError* outError);
 
+FLDict CBLReplicator_PendingDocumentIDs2(CBLReplicator*, const CBLCollection* collection, CBLError* outError);
+
+bool CBLReplicator_IsDocumentPending2(CBLReplicator *repl, FLString docID, const CBLCollection* collection, CBLError* outError);
 
 /** A callback that notifies you when the replicator's status changes.
     @warning  This callback will be called on a background thread managed by the replicator.
@@ -663,6 +955,8 @@ typedef struct {
     FLString ID;                ///< The document ID
     CBLDocumentFlags flags;     ///< Indicates whether the document was deleted or removed
     CBLError error;             ///< If the code is nonzero, the document failed to replicate.
+    FLString scope;             ///<The scope name of the collection
+    FLString collection;        ///<The collection name.
 } CBLReplicatedDocument;
 
 /** A callback that notifies you when documents are replicated.
@@ -685,3 +979,9 @@ CBLListenerToken*
 CBLReplicator_AddDocumentReplicationListener(CBLReplicator*,
                                              CBLDocumentReplicationListener,
                                              void* context);
+
+//////// CBLScope.h
+
+FLString CBLScope_Name(const CBLScope* scope);
+FLMutableArray CBLScope_CollectionNames(const CBLScope* scope, CBLError*);
+CBLCollection* CBLScope_Collection(const CBLScope* scope, FLString collectionName, CBLError*);

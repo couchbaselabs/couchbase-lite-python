@@ -3,7 +3,18 @@ from .common import *
 
 
 class ReplicatorConfiguration:
-    def __init__(self, database, url, push_filter, pull_filter, conflict_resolver,  username, password, cert_path):
+    def __init__(
+        self,
+        database,
+        url,
+        push_filter,
+        pull_filter,
+        conflict_resolver,
+        username,
+        password,
+        cert_path,
+        max_attempt_wait_time=30,  # Default is 30 seconds
+    ):
         pinned_server_cert = []
         if cert_path:
             cert_as_bytes = open(cert_path, "rb").read()
@@ -15,7 +26,7 @@ class ReplicatorConfiguration:
         self.continuous = True
         self.disable_auto_purge = True
         self.max_atempts = 0
-        self.max_attempt_wait_time = 0
+        self.max_attempt_wait_time = max_attempt_wait_time
         self.heartbeat = 0
         self.authenticator = lib.CBLAuth_CreatePassword(stringParam(username), stringParam(password))
         self.proxy = ffi.NULL

@@ -579,6 +579,7 @@ CBLResultSet* CBLQuery_CopyCurrentResults(const CBLQuery* query,
 typedef struct {
     CBLQueryLanguage expressionLanguage;
     FLString expressions;
+    FLString where;
 } CBLValueIndexConfiguration;
 
 bool CBLDatabase_CreateValueIndex(CBLDatabase *db,

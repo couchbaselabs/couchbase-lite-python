@@ -2,6 +2,14 @@ from ._PyCBL import ffi, lib
 from .common import *
 
 
+# CBLReplicatorActivityLevel enum values (from CBLReplicator.h)
+kCBLReplicatorStopped = 0     # The replicator is unstarted, finished, or hit a fatal error.
+kCBLReplicatorOffline = 1     # The replicator is offline, as the remote host is unreachable.
+kCBLReplicatorConnecting = 2  # The replicator is connecting to the remote host.
+kCBLReplicatorIdle = 3        # The replicator is inactive, waiting for changes to sync.
+kCBLReplicatorBusy = 4        # The replicator is actively transferring data.
+
+
 class ReplicatorConfiguration:
     def __init__(
         self,
@@ -77,3 +85,40 @@ class Replicator (CBLObject):
 
     def stop(self):
         lib.CBLReplicator_Stop(self._ref)
+
+    def status(self):
+        """Returns the replicator's current status.
+        
+        Returns a dict with:
+            - activity: int (0=Stopped, 1=Offline, 2=Connecting, 3=Idle, 4=Busy)
+            - progress_complete: float (0.0 to 1.0)
+            - document_count: int
+            - error_code: int (0 if no error)
+        """
+        status = lib.CBLReplicator_Status(self._ref)
+        return {
+            'activity': status.activity,
+            'progress_complete': status.progress.complete,
+            'document_count': status.progress.documentCount,
+            'error_code': status.error.code
+        }
+
+    def is_idle(self):
+        """Returns True if replicator is idle (caught up with all changes)."""
+        return lib.CBLReplicator_Status(self._ref).activity == kCBLReplicatorIdle
+
+    def is_busy(self):
+        """Returns True if replicator is actively transferring data."""
+        return lib.CBLReplicator_Status(self._ref).activity == kCBLReplicatorBusy
+
+    def is_stopped(self):
+        """Returns True if replicator is stopped."""
+        return lib.CBLReplicator_Status(self._ref).activity == kCBLReplicatorStopped
+
+    def is_offline(self):
+        """Returns True if replicator is offline."""
+        return lib.CBLReplicator_Status(self._ref).activity == kCBLReplicatorOffline
+
+    def is_connecting(self):
+        """Returns True if replicator is connecting."""
+        return lib.CBLReplicator_Status(self._ref).activity == kCBLReplicatorConnecting

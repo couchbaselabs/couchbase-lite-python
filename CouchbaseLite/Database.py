@@ -30,19 +30,28 @@ class IndexConfiguration:
     Value Index Configuration.
     """
 
-    def __init__(self, expressionLanguage, expressions: Union[dict, list, str], where: str = ""):
+    def __init__(self, expressionLanguage, expressions: Union[dict, list, str], where: Union[dict, list, str] = None):
         """
         :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
         :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
         :param where: A predicate expression defining conditions for indexing documents. Only documents satisfying the predicate are included, enabling partial indexes. The expression can be JSON or N1QL/SQL++ syntax, depending on expressionLanguage.
         """
         self.expressionLanguage = expressionLanguage
+        if expressions is None:
+            raise ValueError("expressions is required")
         self.expressions = expressions
         self.where = where
 
-        if expressionLanguage == JSONLanguage:
+        if expressionLanguage != JSONLanguage:
+            if not isinstance(expressions, str):
+                raise TypeError(f"expressions must be a string when expressionLanguage is {expressionLanguage} (dict/list is only supported for JSONLanguage)")
+            if where is not None and not isinstance(where, str):
+                raise TypeError(f"where must be a string when expressionLanguage is {expressionLanguage} (dict/list is only supported for JSONLanguage)")
+        else:
             if not isinstance(expressions, str):
                 self.expressions = encodeJSON(expressions)
+            if where is not None and not isinstance(where, str):
+                self.where = encodeJSON(where)
 
     def get_ffi_struct(self):
         """
@@ -64,29 +73,32 @@ class FullTextIndexConfiguration(IndexConfiguration):
         self,
         expressionLanguage,
         expressions: Union[dict, list, str],
+        where: Union[dict, list, str] = None,
         ignoreAccents: bool = False,
         language: str = None,
     ):
         """
         :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
         :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+        :param where: A predicate expression defining conditions for indexing documents. Only documents satisfying the predicate are included, enabling partial indexes. The expression can be JSON or N1QL/SQL++ syntax, depending on expressionLanguage.
         :param ignoreAccents: Should diacritical marks (accents) be ignored? Defaults to false. Generally this should be left false for non-English text.
         :param language: The dominant language. Setting this enables word stemming, i.e. matching different cases of the same word ("big" and "bigger", for instance) and ignoring common "stop-words" ("the", "a", "of", etc.) Can be an ISO-639 language code or a lowercase (English) language name; supported languages are: da/danish, nl/dutch, en/english, fi/finnish, fr/french, de/german, hu/hungarian, it/italian, no/norwegian, pt/portuguese, ro/romanian, ru/russian, es/spanish, sv/swedish, tr/turkish. If left null, or set to an unrecognized language, no language-specific behaviors such as stemming and stop-word removal occur.
         """
-        super().__init__(expressionLanguage, expressions)
+        super().__init__(expressionLanguage, expressions, where)
         self.ignoreAccents = ignoreAccents
+        if language is not None and not isinstance(language, str):
+            raise TypeError("language must be a string")
         self.language = language
 
     def get_ffi_struct(self):
         """
         :return: A config tuple suitable for passing to a CBLFullTextIndexConfiguration C function parameter.
         """
-        options = [self.ignoreAccents]
+        options = [self.expressionLanguage, stringParam(self.expressions), self.ignoreAccents]
+        options.append(stringParam(self.language))
+        options.append(stringParam(self.where))
 
-        if self.language is not None:
-            options.append(stringParam(self.language))
-
-        return super().get_ffi_struct() + tuple(options)
+        return tuple(options)
 
 
 class DatabaseConfiguration:
@@ -105,7 +117,7 @@ class DatabaseConfiguration:
 
 class Database(CBLObject):
     def __init__(self, name, config=None):
-        if config != None:
+        if config is not None:
             dirSlice = stringParam(config.directory)
             cblConfig = ffi.new("CBLDatabaseConfiguration*", [dirSlice])
         else:
@@ -263,7 +275,7 @@ class Database(CBLObject):
     def setDocumentExpiration(self, id, expDateTime):
         timestamp = 0
         if expDateTime != None:
-            timestamp = math.ceil(expDateTime.timestamp)
+            timestamp = math.ceil(expDateTime.timestamp())
         if not lib.CBLDatabase_SetDocumentExpiration(
             self._ref, stringParam(id), timestamp, gError
         ):

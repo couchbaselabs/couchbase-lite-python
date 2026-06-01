@@ -25,7 +25,7 @@ class ReplicatorConfiguration:
         self.replicator_type = 0
         self.continuous = True
         self.disable_auto_purge = True
-        self.max_atempts = 0
+        self.max_attempts = 0
         self.max_attempt_wait_time = max_attempt_wait_time
         self.heartbeat = 0
         self.authenticator = lib.CBLAuth_CreatePassword(stringParam(username), stringParam(password))
@@ -47,7 +47,7 @@ class ReplicatorConfiguration:
                         self.replicator_type,
                         self.continuous,
                         self.disable_auto_purge,
-                        self.max_atempts,
+                        self.max_attempts,
                         self.max_attempt_wait_time,
                         self.heartbeat,
                         self.authenticator,

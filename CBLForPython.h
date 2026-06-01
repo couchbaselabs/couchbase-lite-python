@@ -591,6 +591,7 @@ typedef struct {
     FLString expressions;
     bool ignoreAccents;
     FLString language;
+    FLString where;
 } CBLFullTextIndexConfiguration;
 
 bool CBLDatabase_CreateFullTextIndex(CBLDatabase *db,

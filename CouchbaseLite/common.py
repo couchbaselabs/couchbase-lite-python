@@ -53,6 +53,8 @@ def asSlice(data):
 
 def stringParam(str):
     """Returns a pointer/length array suitable for passing to an FLSlice C function parameter."""
+    if str is None:
+        return [ffi.NULL, 0]
     utf8 = str.encode()
     buffer = ffi.from_buffer(utf8)
     return [buffer, len(buffer)]

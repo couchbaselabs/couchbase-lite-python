@@ -579,6 +579,7 @@ CBLResultSet* CBLQuery_CopyCurrentResults(const CBLQuery* query,
 typedef struct {
     CBLQueryLanguage expressionLanguage;
     FLString expressions;
+    FLString where;
 } CBLValueIndexConfiguration;
 
 bool CBLDatabase_CreateValueIndex(CBLDatabase *db,
@@ -590,6 +591,7 @@ typedef struct {
     FLString expressions;
     bool ignoreAccents;
     FLString language;
+    FLString where;
 } CBLFullTextIndexConfiguration;
 
 bool CBLDatabase_CreateFullTextIndex(CBLDatabase *db,

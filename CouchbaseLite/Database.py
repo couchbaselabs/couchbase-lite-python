@@ -29,51 +29,76 @@ class IndexConfiguration:
     """
     Value Index Configuration.
     """
-    def __init__(self, expressionLanguage, expressions: Union[dict, list, str]):
+
+    def __init__(self, expressionLanguage, expressions: Union[dict, list, str], where: Union[dict, list, str] = None):
         """
         :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
         :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+        :param where: A predicate expression defining conditions for indexing documents. Only documents satisfying the predicate are included, enabling partial indexes. The expression can be JSON or N1QL/SQL++ syntax, depending on expressionLanguage.
         """
         self.expressionLanguage = expressionLanguage
+        if expressions is None:
+            raise ValueError("expressions is required")
         self.expressions = expressions
+        self.where = where
 
-        if expressionLanguage == JSONLanguage:
+        if expressionLanguage != JSONLanguage:
+            if not isinstance(expressions, str):
+                raise TypeError(f"expressions must be a string when expressionLanguage is {expressionLanguage} (dict/list is only supported for JSONLanguage)")
+            if where is not None and not isinstance(where, str):
+                raise TypeError(f"where must be a string when expressionLanguage is {expressionLanguage} (dict/list is only supported for JSONLanguage)")
+        else:
             if not isinstance(expressions, str):
                 self.expressions = encodeJSON(expressions)
+            if where is not None and not isinstance(where, str):
+                self.where = encodeJSON(where)
 
     def get_ffi_struct(self):
         """
         :return: A config tuple suitable for passing to a CBLValueIndexConfiguration C function parameter.
         """
-        return self.expressionLanguage, stringParam(self.expressions)
+        return (
+            self.expressionLanguage,
+            stringParam(self.expressions),
+            stringParam(self.where),
+        )
 
 
 class FullTextIndexConfiguration(IndexConfiguration):
     """
     Full-Text Index Configuration.
     """
-    def __init__(self, expressionLanguage, expressions: Union[dict, list, str], ignoreAccents: bool = False,
-                 language: str = None):
+
+    def __init__(
+        self,
+        expressionLanguage,
+        expressions: Union[dict, list, str],
+        where: Union[dict, list, str] = None,
+        ignoreAccents: bool = False,
+        language: str = None,
+    ):
         """
         :param expressionLanguage: The language used in the expressions: Query.N1QLLanguage or Query.JSONLanguage
         :param expressions: The expressions describing each column of the index. If expressionLanguage is N1QL, the expressions should be specified in N1QL syntax using comma delimiter. Otherwise, it should be a JSON Dictionary/Array or a corresponding Python Dictionary/List. For more info on JSON schema, refer to https://github.com/couchbase/couchbase-lite-core/wiki/JSON-Query-Schema#9-Indexes
+        :param where: A predicate expression defining conditions for indexing documents. Only documents satisfying the predicate are included, enabling partial indexes. The expression can be JSON or N1QL/SQL++ syntax, depending on expressionLanguage.
         :param ignoreAccents: Should diacritical marks (accents) be ignored? Defaults to false. Generally this should be left false for non-English text.
         :param language: The dominant language. Setting this enables word stemming, i.e. matching different cases of the same word ("big" and "bigger", for instance) and ignoring common "stop-words" ("the", "a", "of", etc.) Can be an ISO-639 language code or a lowercase (English) language name; supported languages are: da/danish, nl/dutch, en/english, fi/finnish, fr/french, de/german, hu/hungarian, it/italian, no/norwegian, pt/portuguese, ro/romanian, ru/russian, es/spanish, sv/swedish, tr/turkish. If left null, or set to an unrecognized language, no language-specific behaviors such as stemming and stop-word removal occur.
         """
-        super().__init__(expressionLanguage, expressions)
+        super().__init__(expressionLanguage, expressions, where)
         self.ignoreAccents = ignoreAccents
+        if language is not None and not isinstance(language, str):
+            raise TypeError("language must be a string")
         self.language = language
 
     def get_ffi_struct(self):
         """
         :return: A config tuple suitable for passing to a CBLFullTextIndexConfiguration C function parameter.
         """
-        options = [self.ignoreAccents]
+        options = [self.expressionLanguage, stringParam(self.expressions), self.ignoreAccents]
+        options.append(stringParam(self.language))
+        options.append(stringParam(self.where))
 
-        if self.language is not None:
-            options.append(stringParam(self.language))
-
-        return super().get_ffi_struct() + tuple(options)
+        return tuple(options)
 
 
 class DatabaseConfiguration:
@@ -82,31 +107,36 @@ class DatabaseConfiguration:
 
     def __repr__(self):
         return "DatabaseConfiguration['" + self.directory + "']"
+
     # TODO: Add encryption key for EE support
-    
+
     def _cblConfig(self):
         self._cblDir = stringParam(self.directory)  # to keep string from being GC'd
         return ffi.new("CBLDatabaseConfiguration*", [self._cblDir])
 
 
-class Database (CBLObject):
-    def __init__(self, name, config =None):
-        if config != None:
+class Database(CBLObject):
+    def __init__(self, name, config=None):
+        if config is not None:
             dirSlice = stringParam(config.directory)
             cblConfig = ffi.new("CBLDatabaseConfiguration*", [dirSlice])
         else:
             cblConfig = ffi.NULL
         self.name = name
         self.listeners = set()
-        CBLObject.__init__(self, lib.CBLDatabase_Open(stringParam(name), cblConfig, gError),
-                           "Couldn't open database " + name, gError)
+        CBLObject.__init__(
+            self,
+            lib.CBLDatabase_Open(stringParam(name), cblConfig, gError),
+            "Couldn't open database " + name,
+            gError,
+        )
 
     def __repr__(self):
         return "Database['" + self.name + "']"
 
     def close(self):
         if not lib.CBLDatabase_Close(self._ref, gError):
-            print ("WARNING: Database.close() failed")
+            print("WARNING: Database.close() failed")
 
     def delete(self):
         if not lib.CBLDatabase_Delete(self._ref, gError):
@@ -115,7 +145,12 @@ class Database (CBLObject):
     def copy(self, to_path, to_name):
         from_path = self.getPath()
 
-        if not lib.CBL_CopyDatabase(stringParam(from_path), stringParam(to_name), DatabaseConfiguration(to_path)._cblConfig(), gError):
+        if not lib.CBL_CopyDatabase(
+            stringParam(from_path),
+            stringParam(to_name),
+            DatabaseConfiguration(to_path)._cblConfig(),
+            gError,
+        ):
             raise CBLException("Couldn't copy database", gError)
 
     @staticmethod
@@ -128,7 +163,9 @@ class Database (CBLObject):
             raise CBLException("Couldn't delete database file", gError)
 
     def compact(self):
-        if not lib.CBLDatabase_PerformMaintenance(self._ref, lib.kCBLMaintenanceTypeCompact, gError):
+        if not lib.CBLDatabase_PerformMaintenance(
+            self._ref, lib.kCBLMaintenanceTypeCompact, gError
+        ):
             raise CBLException("Couldn't compact database", gError)
 
     def createIndex(self, name, config: IndexConfiguration):
@@ -137,7 +174,9 @@ class Database (CBLObject):
 
         Indexes are persistent. If an identical index with that name already exists, nothing happens (and no error is returned.) If a non-identical index with that name already exists, it is deleted and re-created.
         """
-        if not lib.CBLDatabase_CreateValueIndex(self._ref, stringParam(name), config.get_ffi_struct(), gError):
+        if not lib.CBLDatabase_CreateValueIndex(
+            self._ref, stringParam(name), config.get_ffi_struct(), gError
+        ):
             raise CBLException("Couldn't create index " + name, gError)
 
     def createFullTextIndex(self, name, config: FullTextIndexConfiguration):
@@ -146,7 +185,9 @@ class Database (CBLObject):
 
         Indexes are persistent. If an identical index with that name already exists, nothing happens (and no error is returned.) If a non-identical index with that name already exists, it is deleted and re-created.
         """
-        if not lib.CBLDatabase_CreateFullTextIndex(self._ref, stringParam(name), config.get_ffi_struct(), gError):
+        if not lib.CBLDatabase_CreateFullTextIndex(
+            self._ref, stringParam(name), config.get_ffi_struct(), gError
+        ):
             raise CBLException("Couldn't create full-text index " + name, gError)
 
     def getIndexNames(self) -> List[str]:
@@ -160,6 +201,7 @@ class Database (CBLObject):
 
     def getPath(self):
         return sliceToString(lib.CBLDatabase_Path(self._ref))
+
     path = property(getPath)
 
     @property
@@ -180,9 +222,11 @@ class Database (CBLObject):
     def getMutableDocument(self, id):
         return MutableDocument._get(self, id)
 
-    def saveDocument(self, doc, concurrency = FailOnConflict):
+    def saveDocument(self, doc, concurrency=FailOnConflict):
         doc._prepareToSave()
-        if not lib.CBLDatabase_SaveDocumentWithConcurrencyControl(self._ref, doc._ref, concurrency, gError):
+        if not lib.CBLDatabase_SaveDocumentWithConcurrencyControl(
+            self._ref, doc._ref, concurrency, gError
+        ):
             raise CBLException("Couldn't save document", gError)
 
     def deleteDocument(self, id):
@@ -218,7 +262,7 @@ class Database (CBLObject):
     # TODO: Some way to abort the transaction w/o raising an exception
 
     # Expiration:
-    
+
     def getDocumentExpiration(self, id):
         exp = lib.CBLDatabase_GetDocumentExpiration(self._ref, stringParam(id), gError)
         if exp > 0:
@@ -227,28 +271,32 @@ class Database (CBLObject):
             return None
         else:
             raise CBLException("Couldn't get document's expiration", gError)
-            
+
     def setDocumentExpiration(self, id, expDateTime):
         timestamp = 0
         if expDateTime != None:
-            timestamp = math.ceil(expDateTime.timestamp)
-        if not lib.CBLDatabase_SetDocumentExpiration(self._ref, stringParam(id), timestamp, gError):
+            timestamp = math.ceil(expDateTime.timestamp())
+        if not lib.CBLDatabase_SetDocumentExpiration(
+            self._ref, stringParam(id), timestamp, gError
+        ):
             raise CBLException("Couldn't set document's expiration", gError)
-
 
     # Listeners:
 
     def addListener(self, listener):
         handle = ffi.new_handle(listener)
         self.listeners.add(handle)
-        c_token = lib.CBLDatabase_AddChangeListener(self._ref, lib.databaseListenerCallback, handle)
+        c_token = lib.CBLDatabase_AddChangeListener(
+            self._ref, lib.databaseListenerCallback, handle
+        )
         return ListenerToken(self, handle, c_token)
 
     def addDocumentListener(self, docID, listener):
         handle = ffi.new_handle(listener)
         self.listeners.add(handle)
-        c_token = lib.CBLDatabase_AddDocumentChangeListener(self._ref, stringParam(docID),
-                                                            lib.databaseListenerCallback, handle)
+        c_token = lib.CBLDatabase_AddDocumentChangeListener(
+            self._ref, stringParam(docID), lib.databaseListenerCallback, handle
+        )
         return ListenerToken(self, handle, c_token)
 
     def removeListener(self, token):
@@ -262,6 +310,7 @@ def databaseListenerCallback(context, db, numDocs, c_docIDs):
         docIDs.append(sliceToString(c_docIDs[i]))
     listener = ffi.from_handle(context)
     listener(docIDs)
+
 
 @ffi.def_extern()
 def documentListenerCallback(context, db, docID):

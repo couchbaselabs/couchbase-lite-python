@@ -1,5 +1,25 @@
+from dataclasses import dataclass
+from enum import IntEnum
+
 from ._PyCBL import ffi, lib
 from .common import *
+
+
+class ReplicatorActivityLevel(IntEnum):
+    """CBLReplicatorActivityLevel enum values (from CBLReplicator.h)."""
+    STOPPED = 0     # The replicator is unstarted, finished, or hit a fatal error.
+    OFFLINE = 1     # The replicator is offline, as the remote host is unreachable.
+    CONNECTING = 2  # The replicator is connecting to the remote host.
+    IDLE = 3        # The replicator is inactive, waiting for changes to sync.
+    BUSY = 4        # The replicator is actively transferring data.
+
+
+@dataclass(frozen=True)
+class ReplicatorStatus:
+    activity: ReplicatorActivityLevel
+    progress_complete: float  # 0.0 to 1.0
+    document_count: int
+    error_code: int           # 0 if no error
 
 
 class ReplicatorConfiguration:
@@ -77,3 +97,32 @@ class Replicator (CBLObject):
 
     def stop(self):
         lib.CBLReplicator_Stop(self._ref)
+
+    def status(self):
+        """Returns the replicator's current status as a ReplicatorStatus."""
+        status = lib.CBLReplicator_Status(self._ref)
+        return ReplicatorStatus(
+            activity=ReplicatorActivityLevel(status.activity),
+            progress_complete=status.progress.complete,
+            document_count=status.progress.documentCount,
+            error_code=status.error.code)
+
+    def is_idle(self):
+        """Returns True if replicator is idle (caught up with all changes)."""
+        return self.status().activity == ReplicatorActivityLevel.IDLE
+
+    def is_busy(self):
+        """Returns True if replicator is actively transferring data."""
+        return self.status().activity == ReplicatorActivityLevel.BUSY
+
+    def is_stopped(self):
+        """Returns True if replicator is stopped."""
+        return self.status().activity == ReplicatorActivityLevel.STOPPED
+
+    def is_offline(self):
+        """Returns True if replicator is offline."""
+        return self.status().activity == ReplicatorActivityLevel.OFFLINE
+
+    def is_connecting(self):
+        """Returns True if replicator is connecting."""
+        return self.status().activity == ReplicatorActivityLevel.CONNECTING
